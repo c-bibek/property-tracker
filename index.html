@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Property Tracker</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-icon">&#127968;</span>
+      <span class="brand-name">Property Tracker</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="themeToggle" class="btn btn-ghost" title="Toggle theme">&#9728;&#65039;</button>
+      <button id="exportBtn" class="btn btn-ghost">Export</button>
+      <label class="btn btn-ghost file-btn">
+        Import
+        <input type="file" id="importInput" accept="application/json" hidden />
+      </label>
+      <button id="addPropertyBtn" class="btn btn-primary">+ Add Property</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <section class="summary-grid" id="summaryGrid">
+      <div class="summary-card">
+        <div class="summary-label">Portfolio Value</div>
+        <div class="summary-value" id="sumValue">$0</div>
+        <div class="summary-sub" id="sumValueSub">0 properties</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Total Equity</div>
+        <div class="summary-value" id="sumEquity">$0</div>
+        <div class="summary-sub" id="sumEquitySub">vs $0 mortgage balance</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Monthly Cash Flow</div>
+        <div class="summary-value" id="sumCashflow">$0</div>
+        <div class="summary-sub" id="sumCashflowSub">$0 / year</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Avg. Cap Rate</div>
+        <div class="summary-value" id="sumCaprate">0%</div>
+        <div class="summary-sub" id="sumCoc">0% cash-on-cash</div>
+      </div>
+    </section>
+
+    <section class="chart-row" id="chartRow">
+      <div class="panel chart-panel">
+        <div class="panel-title">Value &amp; Equity by Property</div>
+        <canvas id="valueChart" height="220"></canvas>
+      </div>
+      <div class="panel chart-panel">
+        <div class="panel-title">Portfolio Mix</div>
+        <canvas id="mixChart" height="220"></canvas>
+      </div>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="table-toolbar">
+        <div class="panel-title">Properties</div>
+        <div class="toolbar-controls">
+          <input type="search" id="searchInput" placeholder="Search address or notes..." />
+          <select id="typeFilter">
+            <option value="">All types</option>
+            <option value="Single-Family">Single-Family</option>
+            <option value="Condo">Condo</option>
+            <option value="Multi-Family">Multi-Family</option>
+            <option value="Townhouse">Townhouse</option>
+            <option value="Commercial">Commercial</option>
+            <option value="Land">Land</option>
+          </select>
+          <select id="sortSelect">
+            <option value="address">Sort: Address</option>
+            <option value="value">Sort: Current Value</option>
+            <option value="equity">Sort: Equity</option>
+            <option value="cashflow">Sort: Cash Flow</option>
+            <option value="caprate">Sort: Cap Rate</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="emptyState" class="empty-state" hidden>
+        <div class="empty-icon">&#127970;</div>
+        <p>No properties yet. Add your first property to start tracking your portfolio.</p>
+        <button class="btn btn-primary" id="emptyAddBtn">+ Add Property</button>
+      </div>
+
+      <div class="table-wrap">
+        <table id="propTable">
+          <thead>
+            <tr>
+              <th>Address</th>
+              <th>Type</th>
+              <th>Purchase</th>
+              <th>Current Value</th>
+              <th>Mortgage Bal.</th>
+              <th>Equity</th>
+              <th>Monthly Cash Flow</th>
+              <th>Cap Rate</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="propTableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- Add / Edit Property Modal -->
+<div class="modal-overlay" id="modalOverlay" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modalTitle">Add Property</h2>
+      <button class="btn btn-ghost" id="closeModalBtn">&times;</button>
+    </div>
+    <form id="propertyForm" class="modal-body">
+      <input type="hidden" id="propId" />
+
+      <div class="form-grid">
+        <div class="field field-wide">
+          <label for="fAddress">Address *</label>
+          <input type="text" id="fAddress" required placeholder="123 Main St, Springfield, IL" />
+        </div>
+
+        <div class="field">
+          <label for="fType">Property Type</label>
+          <select id="fType">
+            <option>Single-Family</option>
+            <option>Condo</option>
+            <option>Multi-Family</option>
+            <option>Townhouse</option>
+            <option>Commercial</option>
+            <option>Land</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="fStatus">Status</label>
+          <select id="fStatus">
+            <option>Owned - Rented</option>
+            <option>Owned - Vacant</option>
+            <option>Owned - Primary Residence</option>
+            <option>Under Contract</option>
+            <option>Sold</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label for="fPurchaseDate">Purchase Date</label>
+          <input type="date" id="fPurchaseDate" />
+        </div>
+
+        <div class="field">
+          <label for="fPurchasePrice">Purchase Price ($)</label>
+          <input type="number" id="fPurchasePrice" min="0" step="1000" />
+        </div>
+
+        <div class="field">
+          <label for="fCurrentValue">Current Value ($)</label>
+          <input type="number" id="fCurrentValue" min="0" step="1000" />
+        </div>
+
+        <div class="field">
+          <label for="fMortgageBalance">Mortgage Balance ($)</label>
+          <input type="number" id="fMortgageBalance" min="0" step="1000" />
+        </div>
+
+        <div class="field">
+          <label for="fMortgagePayment">Monthly Mortgage Payment ($)</label>
+          <input type="number" id="fMortgagePayment" min="0" step="10" />
+        </div>
+
+        <div class="field">
+          <label for="fCashInvested">Total Cash Invested ($)</label>
+          <input type="number" id="fCashInvested" min="0" step="100" title="Down payment + closing costs + rehab" />
+        </div>
+
+        <div class="field">
+          <label for="fMonthlyRent">Monthly Rent Income ($)</label>
+          <input type="number" id="fMonthlyRent" min="0" step="10" />
+        </div>
+
+        <div class="field">
+          <label for="fMonthlyExpenses">Monthly Expenses ($)</label>
+          <input type="number" id="fMonthlyExpenses" min="0" step="10" title="Taxes, insurance, HOA, maintenance, management" />
+        </div>
+
+        <div class="field field-wide">
+          <label for="fNotes">Notes</label>
+          <textarea id="fNotes" rows="3" placeholder="Tenant info, upcoming repairs, links to listing, etc."></textarea>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger" id="deleteBtn" hidden>Delete</button>
+        <div class="spacer"></div>
+        <button type="button" class="btn btn-ghost" id="cancelBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Property</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
