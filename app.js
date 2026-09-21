@@ -45,15 +45,34 @@
     return (isFinite(n) ? n : 0).toFixed(1) + "%";
   }
 
+  const EXPENSE_FIELDS = [
+    "propertyTaxes",
+    "insurance",
+    "hoa",
+    "propertyManagement",
+    "capEx",
+    "vacancy",
+    "repairsMaintenance",
+    "utilities",
+    "otherExpenses",
+  ];
+
+  function totalMonthlyExpenses(p) {
+    const itemized = EXPENSE_FIELDS.reduce((sum, key) => sum + num(p[key]), 0);
+    // fall back to the old lump-sum field for properties saved before itemized expenses existed
+    return itemized > 0 ? itemized : num(p.monthlyExpenses);
+  }
+
   function computeMetrics(p) {
     const equity = num(p.currentValue) - num(p.mortgageBalance);
     const appreciation = num(p.currentValue) - num(p.purchasePrice);
-    const monthlyCashFlow = num(p.monthlyRent) - num(p.monthlyExpenses) - num(p.mortgagePayment);
+    const expenses = totalMonthlyExpenses(p);
+    const monthlyCashFlow = num(p.monthlyRent) - expenses - num(p.mortgagePayment);
     const annualCashFlow = monthlyCashFlow * 12;
-    const noi = (num(p.monthlyRent) - num(p.monthlyExpenses)) * 12;
+    const noi = (num(p.monthlyRent) - expenses) * 12;
     const capRate = num(p.currentValue) > 0 ? (noi / num(p.currentValue)) * 100 : 0;
     const cashOnCash = num(p.cashInvested) > 0 ? (annualCashFlow / num(p.cashInvested)) * 100 : 0;
-    return { equity, appreciation, monthlyCashFlow, annualCashFlow, capRate, cashOnCash };
+    return { equity, appreciation, monthlyCashFlow, annualCashFlow, capRate, cashOnCash, expenses };
   }
 
   // ---------- Rendering ----------
@@ -136,9 +155,21 @@
       const m = computeMetrics(p);
       const tr = document.createElement("tr");
 
+      const href = safeHref(p.zillowUrl);
+      const addressText = escapeHtml(p.address || "(no address)");
+      const addressHtml = href
+        ? `<a href="${escapeAttr(href)}" target="_blank" rel="noopener noreferrer" title="Open on Zillow">${addressText}</a><span class="addr-link-icon">&#8599;</span>`
+        : addressText;
+
+      const imgSrc = safeImgSrc(p.photoUrl);
+      const thumbHtml = imgSrc
+        ? `<img class="thumb" src="${escapeAttr(imgSrc)}" alt="" />`
+        : `<div class="thumb-placeholder">&#127968;</div>`;
+
       tr.innerHTML = `
+        <td class="thumb-cell">${thumbHtml}</td>
         <td class="addr-cell">
-          <div class="addr-main">${escapeHtml(p.address || "(no address)")}</div>
+          <div class="addr-main">${addressHtml}</div>
           <div class="addr-sub">${escapeHtml(p.status || "")}</div>
         </td>
         <td><span class="pill">${escapeHtml(p.type || "-")}</span></td>
@@ -244,6 +275,23 @@
     return div.innerHTML;
   }
 
+  function escapeAttr(str) {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  }
+
+  function safeHref(url) {
+    return /^https?:\/\//i.test(url || "") ? url : "";
+  }
+
+  function safeImgSrc(url) {
+    return /^https?:\/\//i.test(url || "") || /^data:image\//i.test(url || "") ? url : "";
+  }
+
   // ---------- Modal ----------
 
   const overlay = document.getElementById("modalOverlay");
@@ -255,8 +303,14 @@
     document.getElementById("modalTitle").textContent = property ? "Edit Property" : "Add Property";
     document.getElementById("propId").value = property ? property.id : "";
 
+    const preview = document.getElementById("photoPreview");
+    preview.hidden = true;
+    preview.removeAttribute("src");
+
     if (property) {
       document.getElementById("fAddress").value = property.address || "";
+      document.getElementById("fZillowUrl").value = property.zillowUrl || "";
+      document.getElementById("fPhotoUrl").value = property.photoUrl || "";
       document.getElementById("fType").value = property.type || "Single-Family";
       document.getElementById("fStatus").value = property.status || "Owned - Rented";
       document.getElementById("fPurchaseDate").value = property.purchaseDate || "";
@@ -266,11 +320,66 @@
       document.getElementById("fMortgagePayment").value = property.mortgagePayment ?? "";
       document.getElementById("fCashInvested").value = property.cashInvested ?? "";
       document.getElementById("fMonthlyRent").value = property.monthlyRent ?? "";
-      document.getElementById("fMonthlyExpenses").value = property.monthlyExpenses ?? "";
+      document.getElementById("fPropertyTaxes").value = property.propertyTaxes ?? "";
+      document.getElementById("fInsurance").value = property.insurance ?? "";
+      document.getElementById("fHoa").value = property.hoa ?? "";
+      document.getElementById("fPropertyManagement").value = property.propertyManagement ?? "";
+      document.getElementById("fCapEx").value = property.capEx ?? "";
+      document.getElementById("fVacancy").value = property.vacancy ?? "";
+      document.getElementById("fRepairsMaintenance").value = property.repairsMaintenance ?? "";
+      document.getElementById("fUtilities").value = property.utilities ?? "";
+
+      const hasItemized = EXPENSE_FIELDS.some((key) => num(property[key]) > 0);
+      document.getElementById("fOtherExpenses").value =
+        property.otherExpenses ?? (!hasItemized && property.monthlyExpenses ? property.monthlyExpenses : "");
+
       document.getElementById("fNotes").value = property.notes || "";
+
+      const imgSrc = safeImgSrc(property.photoUrl);
+      if (imgSrc) {
+        preview.src = imgSrc;
+        preview.hidden = false;
+      }
     }
 
+    updateTotalExpensesPreview();
     overlay.hidden = false;
+  }
+
+  function updateTotalExpensesPreview() {
+    const total = EXPENSE_FIELDS.reduce((sum, key) => {
+      const el = document.getElementById("f" + key[0].toUpperCase() + key.slice(1));
+      return sum + (el ? num(el.value) : 0);
+    }, 0);
+    document.getElementById("totalExpensesPreview").textContent = fmtMoney(total);
+  }
+
+  function resizeImageFile(file, maxDim, quality) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onerror = () => reject(new Error("Could not read file"));
+      reader.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("Not a valid image"));
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > height && width > maxDim) {
+            height = Math.round(height * (maxDim / width));
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round(width * (maxDim / height));
+            height = maxDim;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.src = String(reader.result);
+      };
+      reader.readAsDataURL(file);
+    });
   }
 
   function closeModal() {
@@ -284,6 +393,8 @@
     const data = {
       id: id || uid(),
       address: document.getElementById("fAddress").value.trim(),
+      zillowUrl: document.getElementById("fZillowUrl").value.trim(),
+      photoUrl: document.getElementById("fPhotoUrl").value.trim(),
       type: document.getElementById("fType").value,
       status: document.getElementById("fStatus").value,
       purchaseDate: document.getElementById("fPurchaseDate").value,
@@ -293,7 +404,15 @@
       mortgagePayment: num(document.getElementById("fMortgagePayment").value),
       cashInvested: num(document.getElementById("fCashInvested").value),
       monthlyRent: num(document.getElementById("fMonthlyRent").value),
-      monthlyExpenses: num(document.getElementById("fMonthlyExpenses").value),
+      propertyTaxes: num(document.getElementById("fPropertyTaxes").value),
+      insurance: num(document.getElementById("fInsurance").value),
+      hoa: num(document.getElementById("fHoa").value),
+      propertyManagement: num(document.getElementById("fPropertyManagement").value),
+      capEx: num(document.getElementById("fCapEx").value),
+      vacancy: num(document.getElementById("fVacancy").value),
+      repairsMaintenance: num(document.getElementById("fRepairsMaintenance").value),
+      utilities: num(document.getElementById("fUtilities").value),
+      otherExpenses: num(document.getElementById("fOtherExpenses").value),
       notes: document.getElementById("fNotes").value.trim(),
     };
 
@@ -390,6 +509,37 @@
     const id = btn.getAttribute("data-id");
     const property = properties.find((p) => p.id === id);
     if (property) openModal(property);
+  });
+
+  document.querySelectorAll(".expense-input").forEach((el) => {
+    el.addEventListener("input", updateTotalExpensesPreview);
+  });
+
+  document.getElementById("fPhotoUrl").addEventListener("input", () => {
+    const url = document.getElementById("fPhotoUrl").value.trim();
+    const preview = document.getElementById("photoPreview");
+    const imgSrc = safeImgSrc(url);
+    if (imgSrc) {
+      preview.src = imgSrc;
+      preview.hidden = false;
+    } else {
+      preview.hidden = true;
+      preview.removeAttribute("src");
+    }
+  });
+
+  document.getElementById("fPhotoUpload").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImageFile(file, 480, 0.8);
+      const urlInput = document.getElementById("fPhotoUrl");
+      urlInput.value = dataUrl;
+      urlInput.dispatchEvent(new Event("input"));
+    } catch (err) {
+      alert("Could not process that image: " + err.message);
+    }
   });
 
   document.getElementById("searchInput").addEventListener("input", render);
