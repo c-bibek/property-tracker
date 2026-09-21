@@ -95,6 +95,7 @@
         <table id="propTable">
           <thead>
             <tr>
+              <th></th>
               <th>Address</th>
               <th>Type</th>
               <th>Purchase</th>
@@ -130,6 +131,25 @@
           <input type="text" id="fAddress" required placeholder="123 Main St, Springfield, IL" />
         </div>
 
+        <div class="field field-wide">
+          <label for="fZillowUrl">Zillow / Listing URL</label>
+          <input type="url" id="fZillowUrl" placeholder="https://www.zillow.com/homedetails/..." />
+        </div>
+
+        <div class="field field-wide">
+          <label for="fPhotoUrl">Photo</label>
+          <div class="photo-row">
+            <img id="photoPreview" class="photo-preview" alt="" hidden />
+            <div class="photo-inputs">
+              <input type="text" id="fPhotoUrl" placeholder="Paste an image URL (e.g. right-click a Zillow photo → Copy image address)" />
+              <label class="btn btn-ghost file-btn photo-upload-btn">
+                Upload photo
+                <input type="file" id="fPhotoUpload" accept="image/*" hidden />
+              </label>
+            </div>
+          </div>
+        </div>
+
         <div class="field">
           <label for="fType">Property Type</label>
           <select id="fType">
@@ -163,6 +183,8 @@
           <input type="number" id="fPurchasePrice" min="0" step="1000" />
         </div>
 
+        <div class="field-section-title field-wide">Financing</div>
+
         <div class="field">
           <label for="fCurrentValue">Current Value ($)</label>
           <input type="number" id="fCurrentValue" min="0" step="1000" />
@@ -175,7 +197,7 @@
 
         <div class="field">
           <label for="fMortgagePayment">Monthly Mortgage Payment ($)</label>
-          <input type="number" id="fMortgagePayment" min="0" step="10" />
+          <input type="number" id="fMortgagePayment" min="0" step="10" title="Principal + interest (P&I)" />
         </div>
 
         <div class="field">
@@ -183,14 +205,63 @@
           <input type="number" id="fCashInvested" min="0" step="100" title="Down payment + closing costs + rehab" />
         </div>
 
-        <div class="field">
+        <div class="field-section-title field-wide">Income</div>
+
+        <div class="field field-wide">
           <label for="fMonthlyRent">Monthly Rent Income ($)</label>
           <input type="number" id="fMonthlyRent" min="0" step="10" />
         </div>
 
+        <div class="field-section-title field-wide">Operating Expenses (monthly)</div>
+
         <div class="field">
-          <label for="fMonthlyExpenses">Monthly Expenses ($)</label>
-          <input type="number" id="fMonthlyExpenses" min="0" step="10" title="Taxes, insurance, HOA, maintenance, management" />
+          <label for="fPropertyTaxes">Property Taxes ($)</label>
+          <input type="number" id="fPropertyTaxes" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field">
+          <label for="fInsurance">Insurance ($)</label>
+          <input type="number" id="fInsurance" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field">
+          <label for="fHoa">HOA / Condo Fees ($)</label>
+          <input type="number" id="fHoa" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field">
+          <label for="fPropertyManagement">Property Management ($)</label>
+          <input type="number" id="fPropertyManagement" min="0" step="5" class="expense-input" placeholder="e.g. 8-10% of rent" />
+        </div>
+
+        <div class="field">
+          <label for="fCapEx">CapEx Reserve ($)</label>
+          <input type="number" id="fCapEx" min="0" step="5" class="expense-input" placeholder="e.g. 5-10% of rent" />
+        </div>
+
+        <div class="field">
+          <label for="fVacancy">Vacancy Reserve ($)</label>
+          <input type="number" id="fVacancy" min="0" step="5" class="expense-input" placeholder="e.g. 5-8% of rent" />
+        </div>
+
+        <div class="field">
+          <label for="fRepairsMaintenance">Repairs &amp; Maintenance ($)</label>
+          <input type="number" id="fRepairsMaintenance" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field">
+          <label for="fUtilities">Utilities (owner-paid) ($)</label>
+          <input type="number" id="fUtilities" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field">
+          <label for="fOtherExpenses">Other ($)</label>
+          <input type="number" id="fOtherExpenses" min="0" step="5" class="expense-input" />
+        </div>
+
+        <div class="field field-wide total-expenses-row">
+          <span>Total Monthly Operating Expenses</span>
+          <strong id="totalExpensesPreview">$0</strong>
         </div>
 
         <div class="field field-wide">
